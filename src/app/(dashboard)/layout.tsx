@@ -10,6 +10,7 @@ import Footer from "@/components/layout/Footer";
 import LoadingVeil from "@/components/ui/LoadingVeil";
 import WelcomeSwoosh from "@/components/ui/WelcomeSwoosh";
 import RecoveryScreen from "@/components/ui/RecoveryScreen";
+import MasterGate from "@/components/ui/MasterGate";
 
 function Shell({ children }: { children: React.ReactNode }) {
   const { data: session, status } = useSession();
@@ -18,15 +19,21 @@ function Shell({ children }: { children: React.ReactNode }) {
   const [showWelcome, setShowWelcome] = useState(false);
   const [loading, setLoading] = useState(true);
   const [recover, setRecover] = useState(false);
+  const [resetOpen, setResetOpen] = useState(false);
 
   useEffect(() => {
     if (status === "unauthenticated") router.replace("/login");
   }, [status, router]);
 
   useEffect(() => {
-    const h = () => setRecover(true);
-    window.addEventListener("sappy-repair", h);
-    return () => window.removeEventListener("sappy-repair", h);
+    const hr = () => setRecover(true);
+    const hs = () => setResetOpen(true);
+    window.addEventListener("sappy-repair", hr);
+    window.addEventListener("sappy-reset", hs);
+    return () => {
+      window.removeEventListener("sappy-repair", hr);
+      window.removeEventListener("sappy-reset", hs);
+    };
   }, []);
 
   useEffect(() => {
@@ -39,6 +46,18 @@ function Shell({ children }: { children: React.ReactNode }) {
     }
   }, [session]);
 
+  async function doReset() {
+    const r = await fetch("/api/repair?reset=1", { method: "POST" });
+    const j = await r.json();
+    setResetOpen(false);
+    if (j.ok) {
+      alert("All data cleared. Fresh start!");
+      window.location.href = "/dashboard";
+    } else {
+      alert("Reset failed. Try again.");
+    }
+  }
+
   if (status === "loading" || !session) {
     return <LoadingVeil progress={60} status="Loading workspace…" />;
   }
@@ -49,6 +68,14 @@ function Shell({ children }: { children: React.ReactNode }) {
 
   return (
     <>
+      {resetOpen && (
+        <MasterGate
+          title="Reset ALL data?"
+          onOk={doReset}
+          onCancel={() => setResetOpen(false)}
+        />
+      )}
+
       <AnimatePresence>
         {showWelcome && (
           <WelcomeSwoosh

@@ -44,10 +44,10 @@ export default function NavPill({ current }: { current: string }) {
         {TRAIL.map(it => (
           <PillLink key={it.href} {...it} active={current === it.href} />
         ))}
-        <button title="Repair database"
-          onClick={() => window.dispatchEvent(new CustomEvent("sappy-repair"))}
+        <button title="Reset all data (master code required)"
+          onClick={() => window.dispatchEvent(new CustomEvent("sappy-reset"))}
           className="group flex items-center gap-2 rounded-full px-3 py-2 text-amber-600 hover:bg-amber-50 transition-all duration-300 shrink-0">
-          <Icon name="repair" className="w-5 h-5 shrink-0" />
+          <Icon name="trash" className="w-5 h-5 shrink-0" />
           <span className="text-sm font-semibold whitespace-nowrap overflow-hidden max-w-0 group-hover:max-w-[10rem] transition-all duration-300">Reset</span>
         </button>
         <button title="Sign out"

@@ -3,6 +3,7 @@ import { useState } from "react";
 import { fmt, num } from "@/lib/money";
 import { toLocalDate, toLocalTime } from "@/lib/utils";
 import MasterGate from "../ui/MasterGate";
+import EmptyState from "../ui/EmptyState";
 
 export default function SalesLedger({ sales, onChanged }: any) {
   const [refund, setRefund] = useState<any>(null);
@@ -20,7 +21,7 @@ export default function SalesLedger({ sales, onChanged }: any) {
   return (
     <>
       <div className="divide-y divide-emerald-100 max-h-[60vh] overflow-auto">
-        {sales.length === 0 && <p className="py-8 text-center text-emerald-800/60">No sales yet.</p>}
+        {sales.length === 0 && <EmptyState title="No sales yet." hint="Sales will appear here once you make a sale." />}
         {sales.map((s: any) => (
           <div key={s.id} className="py-3">
             <div className="flex items-center justify-between">
