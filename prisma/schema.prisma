@@ -1,0 +1,147 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role          String   @default("staff") // owner | staff
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  sales         Sale[]
+  expenses      Expense[]
+  credits       Credit[]
+  purchases     PurchaseOrder[]
+  inventory     InventoryItem[]
+  activities    Activity[]
+  sessions      DeviceSession[]
+}
+
+model InventoryItem {
+  id           String   @id @default(cuid())
+  serial       String   @unique
+  name         String
+  category     String
+  quantity     Int      @default(0)
+  location     String?
+  cost         Decimal? @db.Decimal(14,2)
+  price        Decimal  @db.Decimal(14,2)
+  costUnknown  Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  userId       String
+  user         User     @relation(fields: [userId], references: [id])
+}
+
+model Sale {
+  id            String   @id @default(cuid())
+  invoiceNo     String   @unique
+  date          DateTime
+  backdated     Boolean  @default(false)
+  paymentMethod String
+  total         Decimal  @db.Decimal(14,2)
+  discount      Decimal  @default(0) @db.Decimal(14,2)
+  refunded      Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id])
+  lines         SaleLine[]
+}
+
+model SaleLine {
+  id        String  @id @default(cuid())
+  saleId    String
+  sale      Sale    @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  itemId    String?
+  itemName  String
+  qty       Int
+  price     Decimal @db.Decimal(14,2)
+  cost      Decimal? @db.Decimal(14,2)
+}
+
+model Credit {
+  id        String   @id @default(cuid())
+  customer  String
+  item      String
+  amount    Decimal  @db.Decimal(14,2)
+  date      DateTime
+  backdated Boolean  @default(false)
+  paid      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model PurchaseOrder {
+  id         String   @id @default(cuid())
+  poNumber   String   @unique
+  supplier   String
+  status     String   @default("draft") // draft | ordered | received
+  total      Decimal  @default(0) @db.Decimal(14,2)
+  date       DateTime
+  createdAt  DateTime @default(now())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  lines      PurchaseLine[]
+}
+
+model PurchaseLine {
+  id       String  @id @default(cuid())
+  poId     String
+  po       PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+  itemName String
+  qty      Int
+  cost     Decimal @db.Decimal(14,2)
+  itemId   String?
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  category    String
+  description String?
+  amount      Decimal  @db.Decimal(14,2)
+  date        DateTime
+  backdated   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model Activity {
+  id        String   @id @default(cuid())
+  action    String
+  details   String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+model DeviceSession {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  label     String
+  lastActive DateTime @default(now())
+  createdAt  DateTime @default(now())
+}
+
+model AppSettings {
+  id              String @id @default("singleton")
+  masterHash      String
+  lowStock        Int    @default(5)
+  businessName    String @default("Sappy Stationary")
+  currency        String @default("ETB")
+  ownerName       String @default("Yohannes Leulseged")
+  ownerEmail      String @default("joni@sappyshop.site")
+  updatedAt       DateTime @updatedAt
+}

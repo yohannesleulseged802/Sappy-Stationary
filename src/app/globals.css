@@ -1,0 +1,93 @@
+@import url("https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --cream: #FBF7EE;
+  --cream-deep: #F3ECDA;
+  --emerald-500: #10B981;
+  --emerald-600: #059669;
+  --emerald-700: #047857;
+  --ink: #1F2A24;
+}
+
+html, body {
+  background: var(--cream);
+  color: var(--ink);
+  font-family: "Inter", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Dot grid background */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background-image: radial-gradient(rgba(6,78,59,0.08) 1px, transparent 1px);
+  background-size: 22px 22px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Soft color blobs */
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(600px 400px at 10% 10%, rgba(16,185,129,0.18), transparent 60%),
+    radial-gradient(500px 400px at 90% 30%, rgba(243,236,218,0.9), transparent 60%),
+    radial-gradient(600px 500px at 50% 100%, rgba(16,185,129,0.12), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+#__next, main, .page-root { position: relative; z-index: 1; }
+
+.font-display { font-family: "Fraunces", Georgia, serif; font-optical-sizing: auto; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-thumb { background: #A7F3D0; border-radius: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* Prevent mobile zoom */
+input, select, textarea { font-size: 16px !important; }
+
+/* Shimmer on numbers */
+@keyframes countUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.count-up { animation: countUp 0.6s ease-out both; }
+
+/* Light sweep */
+@keyframes sweep {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(220%); }
+}
+.sweep {
+  position: absolute; inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255,255,255,0.55) 50%, transparent 70%);
+  animation: sweep 1.6s ease-in-out infinite;
+}
+
+/* Progress bar */
+@keyframes indeterminate {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(200%); }
+}
+.progress-indeterminate {
+  animation: indeterminate 1.4s ease-in-out infinite;
+}
+/* ===== UI polish ===== */
+::selection { background: #A7F3D0; color: #064E3B; }
+
+.lift { transition: transform .25s ease, box-shadow .25s ease; }
+.lift:hover { transform: translateY(-2px); }
+
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
