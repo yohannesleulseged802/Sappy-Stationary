@@ -1,6 +1,5 @@
 "use client";
 import { useEffect, useState } from "react";
-import { fmt } from "@/lib/money";
 import Icon from "../ui/Icon";
 
 function loadImg(src: string): Promise<HTMLImageElement> {
@@ -32,7 +31,7 @@ export default function QrLabel({ item }: { item: any }) {
     let logo: HTMLImageElement | null = null;
     try { logo = await loadImg("/logo.png"); } catch { logo = null; }
 
-    const W = 640, H = 1000;
+    const W = 640, H = 900;
     const c = document.createElement("canvas");
     c.width = W; c.height = H;
     const x = c.getContext("2d")!;
@@ -52,14 +51,11 @@ export default function QrLabel({ item }: { item: any }) {
     x.fillStyle = "#6B7280"; x.font = "26px Arial";
     x.fillText(item.serial, W / 2, y + 5); y += 45;
 
-    const qs = 400;
-    x.drawImage(qr, (W - qs) / 2, y, qs, qs); y += qs + 55;
-
-    x.fillStyle = "#059669"; x.font = "bold 60px Georgia, serif";
-    x.fillText(fmt(item.price), W / 2, y + 10);
+    const qs = 420;
+    x.drawImage(qr, (W - qs) / 2, y, qs, qs);
 
     x.fillStyle = "#9CA3AF"; x.font = "24px Arial";
-    x.fillText("sappyshop.site", W / 2, H - 60);
+    x.fillText("sappyshop.site", W / 2, H - 55);
 
     const a = document.createElement("a");
     a.download = `${item.serial}-label.png`;
@@ -80,7 +76,6 @@ export default function QrLabel({ item }: { item: any }) {
           <div className="my-2 bg-white p-2 rounded-xl border border-emerald-100">
             {src ? <img src={src} alt="QR" className="w-full h-auto" /> : <div className="h-32 grid place-items-center text-emerald-900/40 text-xs">Loading…</div>}
           </div>
-          <div className="font-display text-xl text-emerald-700">{fmt(item.price)}</div>
           <div className="text-[9px] text-emerald-900/50 mt-0.5">sappyshop.site</div>
         </div>
       </div>

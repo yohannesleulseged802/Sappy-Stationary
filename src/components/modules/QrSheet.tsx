@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import Modal from "../ui/Modal";
-import { fmt } from "@/lib/money";
 import Icon from "../ui/Icon";
 
 function esc(s: string) {
@@ -40,7 +39,6 @@ export default function QrSheet({ items, onClose }: any) {
         ${dataUrls[it.id] ? `<img class="qr" src="${dataUrls[it.id]}" />` : ""}
         <div class="name">${esc(it.name)}</div>
         <div class="serial">${it.serial}</div>
-        <div class="price">${fmt(it.price)}</div>
       </div>`).join("");
     w.document.write(`<html><head><title>Sappy Stationary — Labels</title><style>
       @page { size: A4; margin: 10mm; }
@@ -51,10 +49,9 @@ export default function QrSheet({ items, onClose }: any) {
       .grid { display: grid; grid-template-columns: repeat(${size}, 1fr); gap: 4px; }
       .cell { border: 1.5px solid #059669; border-radius: 10px; padding: 6px; text-align: center;
               aspect-ratio: 1; display: flex; flex-direction: column; justify-content: center; align-items: center; }
-      .qr { width: 58%; }
+      .qr { width: 62%; }
       .name { font-weight: 700; font-size: 10px; margin-top: 2px; }
       .serial { font-size: 8px; color: #555; }
-      .price { font-size: 12px; font-weight: 700; color: #059669; }
     </style></head><body>
       <header><img src="/logo.png" /><b>Sappy Stationary</b></header>
       <div class="grid">${body}</div>
@@ -104,7 +101,6 @@ export default function QrSheet({ items, onClose }: any) {
                 {dataUrls[it.id] && <img src={dataUrls[it.id]} alt="qr" className="w-3/5 h-auto" />}
                 <div className="text-[9px] font-semibold truncate w-full">{it.name}</div>
                 <div className="text-[8px] text-emerald-900/60">{it.serial}</div>
-                <div className="text-[10px] font-display text-emerald-700">{fmt(it.price)}</div>
               </div>
             );
           })}
