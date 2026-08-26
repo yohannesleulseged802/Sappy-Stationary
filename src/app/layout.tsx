@@ -5,7 +5,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "Sappy Stationary — Workspace",
   description: "Stationary & Printing business workspace",
-  icons: { icon: "/logo.svg" },
+  icons: { icon: "/logo.png" },
 };
 
 export const viewport: Viewport = {

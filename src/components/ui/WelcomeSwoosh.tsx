@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
+import Logo from "./Logo";
 
 export default function WelcomeSwoosh({ name, onDone }: { name: string; onDone: () => void }) {
   const [p, setP] = useState(0);
@@ -18,7 +19,9 @@ export default function WelcomeSwoosh({ name, onDone }: { name: string; onDone: 
       className="fixed inset-0 z-[70] bg-gradient-to-br from-emerald-700 to-emerald-900 text-white grid place-items-center">
       <div className="text-center relative">
         <motion.div initial={{ scale: 0, rotate: -20 }} animate={{ scale: 1, rotate: 0 }} transition={{ type: "spring" }}
-          className="mx-auto w-24 h-24 rounded-3xl bg-white text-emerald-700 grid place-items-center text-5xl font-display font-bold shadow-2xl">S</motion.div>
+          className="inline-block">
+          <Logo className="w-24 h-24" rounded="rounded-3xl" />
+        </motion.div>
         <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.3 }}
           className="mt-6 font-display text-4xl">Welcome, {name}</motion.div>
         <div className="mt-6 w-72 h-2 bg-white/20 rounded-full overflow-hidden mx-auto relative">

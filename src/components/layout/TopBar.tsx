@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import MobileSheet from "./MobileSheet";
 import Icon from "@/components/ui/Icon";
+import Logo from "@/components/ui/Logo";
 
 export default function TopBar({ onRepair }: { onRepair: () => void }) {
   const { data: session } = useSession();
@@ -33,7 +34,7 @@ export default function TopBar({ onRepair }: { onRepair: () => void }) {
         </div>
         <div className="max-w-7xl mx-auto px-4 h-14 flex items-center justify-between gap-3">
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white grid place-items-center font-display font-bold shadow-md shrink-0">S</div>
+            <Logo className="w-9 h-9" />
             <div className="font-display text-lg truncate hidden sm:block">Sappy Stationary</div>
           </div>
           <div className="flex items-center gap-2 min-w-0">
