@@ -97,37 +97,27 @@ export default function SalesTicket({ onDone }: { onDone: () => void }) {
             value={query}
             onChange={e => setQuery(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); addCustom(); } }}
-            placeholder="Search stock or type item name…"
+            placeholder="Search stock or type item…"
             className="w-full rounded-xl border border-emerald-200 bg-white pl-9 pr-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-emerald-500"
           />
         </div>
-        <button
-          onClick={() => setScanning(true)}
-          title="Scan QR"
-          className="rounded-xl bg-emerald-50 text-emerald-700 px-3 hover:bg-emerald-100 transition grid place-items-center"
-        >
+        <button onClick={() => setScanning(true)} title="Scan QR"
+          className="rounded-xl bg-emerald-50 text-emerald-700 px-3 hover:bg-emerald-100 transition grid place-items-center shrink-0">
           <Icon name="camera" className="w-5 h-5" />
         </button>
-        <button
-          onClick={addCustom}
-          className="rounded-xl bg-emerald-600 text-white px-4 py-2.5 font-semibold hover:bg-emerald-700 transition flex items-center gap-1.5"
-        >
-          <Icon name="plus" className="w-4 h-4" /> Add
+        <button onClick={addCustom}
+          className="rounded-xl bg-emerald-600 text-white px-4 py-2.5 font-semibold hover:bg-emerald-700 transition flex items-center gap-1.5 shrink-0">
+          <Icon name="plus" className="w-4 h-4" /> <span className="hidden sm:inline">Add</span>
         </button>
       </div>
 
       {q !== "" && (
         <div className="mt-2 rounded-xl border border-emerald-100 bg-white divide-y divide-emerald-50 overflow-hidden">
           {matches.map(m => (
-            <button
-              key={m.id}
-              onClick={() => addLine(m)}
-              className="w-full text-left px-3 py-2 hover:bg-emerald-50 flex items-center justify-between gap-2"
-            >
+            <button key={m.id} onClick={() => addLine(m)}
+              className="w-full text-left px-3 py-2.5 hover:bg-emerald-50 active:bg-emerald-50 flex items-center justify-between gap-2 min-w-0">
               <span className="font-medium truncate">{m.name}</span>
-              <span className="text-xs text-emerald-900/50 shrink-0">
-                {m.serial} • {m.quantity} left • {fmt(m.price)}
-              </span>
+              <span className="text-xs text-emerald-900/50 shrink-0">{m.quantity} left • {fmt(m.price)}</span>
             </button>
           ))}
           {matches.length === 0 && (
@@ -138,42 +128,39 @@ export default function SalesTicket({ onDone }: { onDone: () => void }) {
         </div>
       )}
 
-      {/* Ticket lines */}
+      {/* Ticket lines — stacked for thumbs */}
       <div className="mt-4 space-y-2">
         {lines.map((l, idx) => (
-          <div key={idx} className="flex items-center gap-2 rounded-xl bg-emerald-50/50 border border-emerald-100 p-2">
-            <input
-              value={l.name}
-              onChange={e => setLine(idx, { name: e.target.value })}
-              className="flex-1 min-w-0 rounded-lg border border-emerald-200 bg-white px-3 py-1.5"
-            />
-            <input
-              type="number"
-              min={1}
-              value={l.qty}
-              onChange={e => setLine(idx, { qty: Math.max(1, Number(e.target.value)) })}
-              className="w-16 rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-center"
-              title="Qty"
-            />
-            <input
-              type="number"
-              step="0.01"
-              min={0}
-              value={l.price}
-              onChange={e => setLine(idx, { price: Number(e.target.value) })}
-              className="w-24 rounded-lg border border-emerald-200 bg-white px-2 py-1.5 text-right"
-              title="Unit price (ETB)"
-            />
-            <div className="w-24 text-right font-display truncate" title={fmt(l.qty * l.price)}>
-              {fmt(l.qty * l.price)}
+          <div key={idx} className="rounded-xl bg-emerald-50/50 border border-emerald-100 p-2">
+            <div className="flex items-center gap-2">
+              <input value={l.name} onChange={e => setLine(idx, { name: e.target.value })}
+                className="flex-1 min-w-0 rounded-lg border border-emerald-200 bg-white px-3 py-2" />
+              <button onClick={() => setLines(ls => ls.filter((_, i) => i !== idx))}
+                className="text-red-400 hover:text-red-600 active:bg-red-50 grid place-items-center w-10 h-10 rounded-lg shrink-0"
+                title="Remove line">
+                <Icon name="trash" className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setLines(ls => ls.filter((_, i) => i !== idx))}
-              className="text-red-400 hover:text-red-600 transition grid place-items-center w-8 h-8 rounded-lg hover:bg-red-50"
-              title="Remove line"
-            >
-              <Icon name="trash" className="w-4 h-4" />
-            </button>
+            <div className="grid grid-cols-3 gap-2 mt-2 items-end">
+              <div className="min-w-0">
+                <label className="text-[10px] uppercase tracking-wide text-emerald-900/50 font-semibold">Qty</label>
+                <input type="number" min={1} value={l.qty}
+                  onChange={e => setLine(idx, { qty: Math.max(1, Number(e.target.value)) })}
+                  className="w-full rounded-lg border border-emerald-200 bg-white px-2 py-2 text-center" />
+              </div>
+              <div className="min-w-0">
+                <label className="text-[10px] uppercase tracking-wide text-emerald-900/50 font-semibold">Price</label>
+                <input type="number" step="0.01" min={0} value={l.price}
+                  onChange={e => setLine(idx, { price: Number(e.target.value) })}
+                  className="w-full rounded-lg border border-emerald-200 bg-white px-2 py-2 text-right" />
+              </div>
+              <div className="min-w-0">
+                <label className="text-[10px] uppercase tracking-wide text-emerald-900/50 font-semibold">Total</label>
+                <div className="rounded-lg bg-white border border-emerald-100 px-2 py-2 text-right font-display truncate" title={fmt(l.qty * l.price)}>
+                  {fmt(l.qty * l.price)}
+                </div>
+              </div>
+            </div>
           </div>
         ))}
         {lines.length === 0 && (
@@ -185,58 +172,41 @@ export default function SalesTicket({ onDone }: { onDone: () => void }) {
 
       {/* Meta */}
       <div className="grid grid-cols-2 gap-2 mt-4">
-        <div>
+        <div className="min-w-0">
           <label className="text-xs font-medium text-emerald-900/60">Discount (ETB)</label>
-          <input
-            type="number"
-            step="0.01"
-            min={0}
-            value={discount}
+          <input type="number" step="0.01" min={0} value={discount}
             onChange={e => setDiscount(Number(e.target.value))}
-            className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2"
-          />
+            className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2" />
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-xs font-medium text-emerald-900/60">Payment</label>
-          <select
-            value={payment}
-            onChange={e => setPayment(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2"
-          >
-            {PAYMENTS.map(p => (
-              <option key={p}>{p}</option>
-            ))}
+          <select value={payment} onChange={e => setPayment(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2">
+            {PAYMENTS.map(p => <option key={p}>{p}</option>)}
           </select>
         </div>
-        <div>
+        <div className="min-w-0">
           <label className="text-xs font-medium text-emerald-900/60">Date</label>
-          <input
-            type="date"
-            value={date}
-            onChange={e => setDate(e.target.value)}
-            className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2"
-          />
+          <input type="date" value={date} onChange={e => setDate(e.target.value)}
+            className="mt-1 w-full rounded-lg border border-emerald-200 bg-white px-3 py-2" />
         </div>
-        <div className="flex items-end">
-          <div className="w-full rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 text-right">
+        <div className="flex items-end min-w-0">
+          <div className="w-full rounded-xl bg-emerald-50 border border-emerald-100 px-3 py-2 text-right min-w-0">
             <div className="text-[11px] uppercase tracking-wider text-emerald-900/50 font-semibold">Total</div>
-            <div className="font-display text-xl">{fmt(total)}</div>
+            <div className="font-display text-xl truncate">{fmt(total)}</div>
           </div>
         </div>
       </div>
 
       {/* Footer row */}
-      <div className="flex items-center justify-between mt-4 gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 mt-4">
         {backdated ? (
           <span className="text-xs rounded-full bg-amber-100 text-amber-700 px-2.5 py-1 font-medium">Backdated</span>
         ) : (
           <span className="text-xs text-emerald-900/40">Totals update live.</span>
         )}
-        <button
-          onClick={record}
-          disabled={lines.length === 0 || saving}
-          className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 font-semibold hover:bg-emerald-700 transition disabled:opacity-50 flex items-center gap-2"
-        >
+        <button onClick={record} disabled={lines.length === 0 || saving}
+          className="rounded-xl bg-emerald-600 text-white px-5 py-2.5 font-semibold hover:bg-emerald-700 active:scale-[0.98] transition disabled:opacity-50 flex items-center gap-2">
           <Icon name="check" className="w-4 h-4" />
           {saving ? "Recording…" : "Record sale"}
         </button>
