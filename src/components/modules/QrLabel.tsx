@@ -69,28 +69,28 @@ export default function QrLabel({ item }: { item: any }) {
 
   return (
     <div className="text-center">
-      <div className="mx-auto w-72 rounded-2xl overflow-hidden border-2 border-emerald-600 bg-white shadow-soft">
-        <div className="bg-emerald-600 py-2 flex items-center justify-center gap-2">
-          <img src="/logo.png" alt="logo" className="w-6 h-6 rounded-md object-cover bg-white" />
-          <span className="text-white font-display text-lg">Sappy Stationary</span>
+      <div className="mx-auto w-60 md:w-64 rounded-2xl overflow-hidden border-2 border-emerald-600 bg-white shadow-soft">
+        <div className="bg-emerald-600 py-1.5 flex items-center justify-center gap-2">
+          <img src="/logo.png" alt="logo" className="w-5 h-5 rounded-md object-cover bg-white" />
+          <span className="text-white font-display text-base">Sappy Stationary</span>
         </div>
-        <div className="p-4 bg-cream">
-          <div className="font-semibold truncate" title={item.name}>{item.name}</div>
-          <div className="text-xs text-emerald-900/60 mt-0.5">{item.serial}</div>
-          <div className="my-3 bg-white p-3 rounded-xl border border-emerald-100">
-            {src ? <img src={src} alt="QR" className="w-full h-auto" /> : <div className="h-40 grid place-items-center text-emerald-900/40 text-sm">Loading…</div>}
+        <div className="p-3 bg-cream">
+          <div className="font-semibold text-sm truncate" title={item.name}>{item.name}</div>
+          <div className="text-[11px] text-emerald-900/60 mt-0.5">{item.serial}</div>
+          <div className="my-2 bg-white p-2 rounded-xl border border-emerald-100">
+            {src ? <img src={src} alt="QR" className="w-full h-auto" /> : <div className="h-32 grid place-items-center text-emerald-900/40 text-xs">Loading…</div>}
           </div>
-          <div className="font-display text-2xl text-emerald-700">{fmt(item.price)}</div>
-          <div className="text-[10px] text-emerald-900/50 mt-1">sappyshop.site</div>
+          <div className="font-display text-xl text-emerald-700">{fmt(item.price)}</div>
+          <div className="text-[9px] text-emerald-900/50 mt-0.5">sappyshop.site</div>
         </div>
       </div>
       <div className="flex gap-2 justify-center mt-3">
         <button onClick={downloadLabel}
-          className="rounded-xl bg-emerald-600 text-white px-4 py-2 flex items-center gap-2 hover:bg-emerald-700 transition">
+          className="rounded-xl bg-emerald-600 text-white px-4 py-2 text-sm flex items-center gap-2 hover:bg-emerald-700 transition">
           <Icon name="download" className="w-4 h-4" /> Label PNG
         </button>
         <button onClick={downloadQr}
-          className="rounded-xl border border-emerald-200 bg-white px-4 py-2 flex items-center gap-2 hover:bg-emerald-50 transition">
+          className="rounded-xl border border-emerald-200 bg-white px-4 py-2 text-sm flex items-center gap-2 hover:bg-emerald-50 transition">
           <Icon name="qr" className="w-4 h-4" /> QR only
         </button>
       </div>

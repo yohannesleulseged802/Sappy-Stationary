@@ -7,6 +7,12 @@ import { readExcel, toExcelBuffer } from "@/lib/excel";
 import { brandedPdf, addTable } from "@/lib/pdf";
 import { fmt } from "@/lib/money";
 
+function toNum(v: any): number | null {
+  if (v === null || v === undefined || v === "") return null;
+  const n = parseFloat(String(v).replace(/[^0-9.-]/g, ""));
+  return isNaN(n) ? null : n;
+}
+
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session) return NextResponse.json([], { status: 401 });
@@ -38,7 +44,6 @@ export async function GET(req: NextRequest) {
       Location: i.location || "",
       Cost: i.costUnknown ? "" : (i.cost?.toString() || ""),
       Price: i.price.toString(),
-      By: i.user.name,
     }));
     const buf = toExcelBuffer(rows, "Inventory");
     return new NextResponse(buf as any, {
@@ -57,8 +62,8 @@ export async function GET(req: NextRequest) {
     const doc = brandedPdf("Inventory");
     addTable(
       doc,
-      [["Serial", "Name", "Category", "Qty", "Cost", "Price", "By"]],
-      items.map(i => [i.serial, i.name, i.category, String(i.quantity), i.costUnknown ? "unknown" : fmt(i.cost), fmt(i.price), i.user.name])
+      [["Serial", "Name", "Category", "Qty", "Cost", "Price"]],
+      items.map(i => [i.serial, i.name, i.category, String(i.quantity), i.costUnknown ? "unknown" : fmt(i.cost), fmt(i.price)])
     );
     return new NextResponse(doc.output("arraybuffer"), { headers: { "Content-Type": "application/pdf" } });
   }
@@ -80,29 +85,71 @@ export async function POST(req: NextRequest) {
     const f = fd.get("file") as File;
     const buf = Buffer.from(await f.arrayBuffer());
     const { rows } = readExcel(buf);
-    let count = 0;
+    let added = 0, updated = 0;
     const errors: string[] = [];
-    rows.forEach((r, idx) => {
-      const name = String(r.Name || r.name || r.item || "").trim();
-      if (!name) { errors.push(`Row ${idx + 2}: missing Name`); return; }
-      prisma.inventoryItem.create({
-        data: {
-          serial: genSerial(),
-          name,
-          category: String(r.Category || r.category || "Custom"),
-          quantity: Number(r.Quantity || r.quantity || r.qty || 0),
-          location: String(r.Location || r.location || ""),
-          cost: r.Cost || r.cost ? Number(r.Cost || r.cost) : null,
-          price: Number(r.Price || r.price || r.sell || 0),
-          costUnknown: !r.Cost && !r.cost,
-          userId: uid,
-        },
-      }).then(() => { count++; })
-        .catch(e => errors.push(`Row ${idx + 2}: ${e.message}`));
+
+    const pick = (norm: Record<string, any>, keys: string[]) => {
+      for (const k of keys) if (norm[k] !== undefined && norm[k] !== "") return norm[k];
+      return undefined;
+    };
+
+    for (let idx = 0; idx < rows.length; idx++) {
+      const r = rows[idx];
+      const norm: Record<string, any> = {};
+      Object.keys(r).forEach(k => {
+        norm[k.toLowerCase().replace(/[^a-z0-9]/g, "")] = r[k];
+      });
+
+      const name = String(
+        pick(norm, ["name", "item", "itemname", "product", "productname", "title", "description"]) || ""
+      ).trim();
+      if (!name) { errors.push(`Row ${idx + 2}: missing Name`); continue; }
+
+      const category = String(pick(norm, ["category", "cat", "type", "group"]) || "Custom");
+      const quantity = toNum(pick(norm, ["quantity", "qty", "stock", "units", "count"])) ?? 0;
+      const location = String(pick(norm, ["location", "loc", "shelf", "place"]) || "");
+      const cost = toNum(pick(norm, ["cost", "costprice", "purchaseprice", "buyprice", "unitcost", "costetb", "purchase"]));
+      const price = toNum(pick(norm, ["price", "sellprice", "sellingprice", "saleprice", "salesprice", "unitprice", "sell", "selling", "sales", "priceetb"])) ?? 0;
+
+      try {
+        const existing = await prisma.inventoryItem.findFirst({
+          where: { name: { equals: name, mode: "insensitive" } },
+        });
+        if (existing) {
+          await prisma.inventoryItem.update({
+            where: { id: existing.id },
+            data: {
+              category,
+              quantity,
+              location: location || existing.location,
+              cost: cost === null ? existing.cost : cost,
+              price: price || existing.price,
+              costUnknown: cost === null ? existing.costUnknown : false,
+            },
+          });
+          updated++;
+        } else {
+          await prisma.inventoryItem.create({
+            data: {
+              serial: genSerial(),
+              name, category, quantity,
+              location: location || null,
+              cost, price,
+              costUnknown: cost === null,
+              userId: uid,
+            },
+          });
+          added++;
+        }
+      } catch (e: any) {
+        errors.push(`Row ${idx + 2}: ${e.message}`);
+      }
+    }
+
+    await prisma.activity.create({
+      data: { action: "inventory_imported", details: `${added} added, ${updated} updated`, userId: uid },
     });
-    await new Promise(res => setTimeout(res, 1500));
-    await prisma.activity.create({ data: { action: "inventory_imported", details: `${count} items`, userId: uid } });
-    return NextResponse.json({ ok: true, count, errors });
+    return NextResponse.json({ ok: true, count: added, updated, errors });
   }
 
   const body = await req.json();
