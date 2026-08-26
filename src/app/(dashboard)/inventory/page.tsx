@@ -5,6 +5,7 @@ import Card from "@/components/ui/Card";
 import KpiTile from "@/components/ui/KpiTile";
 import Icon from "@/components/ui/Icon";
 import { fmt, num } from "@/lib/money";
+import { qrDataUrl } from "@/lib/qr";
 
 /* ================= helpers ================= */
 function esc(s: string) {
@@ -26,6 +27,9 @@ async function imgToDataUrl(src: string): Promise<string> {
   c.getContext("2d")!.drawImage(img, 0, 0);
   return c.toDataURL("image/png");
 }
+
+/* QR cache — generated once per item, then instant forever */
+const qrCache: Record<string, string> = {};
 
 /* ================= overlay (local modal) ================= */
 function Overlay({ onClose, title, children }: any) {
@@ -51,6 +55,8 @@ const GRIDS = [
   { label: "4×4", c: 4, r: 4 },
   { label: "5×5", c: 5, r: 5 },
   { label: "6×6", c: 6, r: 6 },
+  { label: "7×7", c: 7, r: 7 },
+  { label: "8×8", c: 8, r: 8 },
   { label: "8×10", c: 8, r: 10 },
 ];
 
@@ -81,7 +87,7 @@ export default function InventoryPage() {
 
   useEffect(() => {
     if (!qr) { setQrUrl(""); return; }
-    fetch(`/api/inventory/${qr.id}?qr=1`).then(r => r.json()).then(j => setQrUrl(j.dataUrl)).catch(() => setQrUrl(""));
+    qrDataUrl(qr.serial).then(setQrUrl).catch(() => setQrUrl(""));
   }, [qr]);
 
   const filtered = items.filter(i =>
@@ -115,26 +121,24 @@ export default function InventoryPage() {
     setCopies(c => ({ ...c, [id]: (c[id] || 1) === 1 ? Math.max(qty, 1) : 1 }));
   }
 
+  /* INSTANT: QR codes generated on-device + cached (no network round-trips) */
   async function buildEntries() {
-    const urls: Record<string, string> = {};
-    for (const id of selected) {
-      try {
-        const r = await fetch(`/api/inventory/${id}?qr=1`);
-        const j = await r.json();
-        urls[id] = j.dataUrl;
-      } catch { }
-    }
     const entries: any[] = [];
     for (const id of selected) {
       const it = items.find(i => i.id === id);
       if (!it) continue;
+      let url = qrCache[id];
+      if (!url) {
+        url = await qrDataUrl(it.serial);
+        qrCache[id] = url;
+      }
       const n = Math.max(copies[id] || 1, 1);
-      for (let k = 0; k < n; k++) entries.push({ name: it.name, serial: it.serial, qr: urls[id] || "" });
+      for (let k = 0; k < n; k++) entries.push({ name: it.name, serial: it.serial, qr: url });
     }
     return entries;
   }
 
-  /* ---------- PRINT (logo above each QR, QR 100% clean) ---------- */
+  /* ---------- PRINT ---------- */
   async function printSheet() {
     if (!selected.length) return;
     setPrinting(true);
@@ -181,7 +185,7 @@ export default function InventoryPage() {
     } finally { setPrinting(false); }
   }
 
-  /* ---------- EXPORT PDF (logo above each QR, QR 100% clean) ---------- */
+  /* ---------- EXPORT PDF ---------- */
   async function exportSheetPdf() {
     if (!selected.length) return;
     setPrinting(true);
@@ -218,7 +222,6 @@ export default function InventoryPage() {
           if (!cell) continue;
 
           let cy = y + 1.2;
-          // Logo sits ABOVE the QR — aesthetic + zero scan risk
           if (logoData) {
             const ls = Math.min(cellW * 0.3, cellH * 0.18, 10);
             try { doc.addImage(logoData, "PNG", x + (cellW - ls) / 2, cy, ls, ls); } catch { }
@@ -250,7 +253,7 @@ export default function InventoryPage() {
     } finally { setPrinting(false); }
   }
 
-  /* ---------- single label PNG (logo on top, QR clean) ---------- */
+  /* ---------- single label PNG ---------- */
   async function downloadLabelPng(item: any) {
     if (!qrUrl) return;
     const qrI = await loadImg(qrUrl);
@@ -460,7 +463,7 @@ export default function InventoryPage() {
         <ItemForm initial={edit} onClose={() => { setFormOpen(false); setEdit(null); }} onSaved={() => { setFormOpen(false); setEdit(null); load(); }} />
       )}
 
-      {/* QR label (logo on top, QR clean) */}
+      {/* QR label */}
       {qr && (
         <Overlay onClose={() => setQr(null)} title={qr.name}>
           <div className="text-center">
