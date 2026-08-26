@@ -64,3 +64,8 @@ export function openLabelPrintWindow(pages: any[][], cols: number, rows: number)
   <script>window.onload = function(){ window.print(); }<\/script></body></html>`);
   w.document.close();
 }
+
+/* Legacy default export — safe no-op so old imports never crash */
+export default function QrSheet() {
+  return null;
+}
