@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import jsPDF from "jspdf";
 import Card from "@/components/ui/Card";
 import KpiTile from "@/components/ui/KpiTile";
 import Icon from "@/components/ui/Icon";
@@ -16,6 +17,14 @@ function chunk<T>(arr: T[], size: number): T[][] {
 }
 function loadImg(src: string): Promise<HTMLImageElement> {
   return new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = rej; i.src = src; });
+}
+async function imgToDataUrl(src: string): Promise<string> {
+  const img = await loadImg(src);
+  const c = document.createElement("canvas");
+  c.width = img.naturalWidth || img.width;
+  c.height = img.naturalHeight || img.height;
+  c.getContext("2d")!.drawImage(img, 0, 0);
+  return c.toDataURL("image/png");
 }
 
 /* ================= overlay (local modal) ================= */
@@ -106,25 +115,34 @@ export default function InventoryPage() {
     setCopies(c => ({ ...c, [id]: (c[id] || 1) === 1 ? Math.max(qty, 1) : 1 }));
   }
 
-  async function printSheet() {
-    if (!selected.length) return;
-    setPrinting(true);
-    try {
-      const urls: Record<string, string> = {};
+  async function buildEntries() {
+    const urls = await (async () => {
+      const out: Record<string, string> = {};
       for (const id of selected) {
         try {
           const r = await fetch(`/api/inventory/${id}?qr=1`);
           const j = await r.json();
-          urls[id] = j.dataUrl;
+          out[id] = j.dataUrl;
         } catch { }
       }
-      const entries: any[] = [];
-      for (const id of selected) {
-        const it = items.find(i => i.id === id);
-        if (!it) continue;
-        const n = Math.max(copies[id] || 1, 1);
-        for (let k = 0; k < n; k++) entries.push({ name: it.name, serial: it.serial, qr: urls[id] || "" });
-      }
+      return out;
+    })();
+    const entries: any[] = [];
+    for (const id of selected) {
+      const it = items.find(i => i.id === id);
+      if (!it) continue;
+      const n = Math.max(copies[id] || 1, 1);
+      for (let k = 0; k < n; k++) entries.push({ name: it.name, serial: it.serial, qr: urls[id] || "" });
+    }
+    return entries;
+  }
+
+  /* ---------- PRINT (browser) ---------- */
+  async function printSheet() {
+    if (!selected.length) return;
+    setPrinting(true);
+    try {
+      const entries = await buildEntries();
       const pages = chunk(entries, grid.c * grid.r);
       const w = window.open("", "_blank", "width=900,height=1200");
       if (!w) { alert("Please allow pop-ups to print the label sheet."); return; }
@@ -160,6 +178,83 @@ export default function InventoryPage() {
       </style></head><body>${pagesHtml}
       <script>window.onload = function(){ window.print(); }<\/script></body></html>`);
       w.document.close();
+    } finally { setPrinting(false); }
+  }
+
+  /* ---------- EXPORT PDF (branded, multi-page) ---------- */
+  async function exportSheetPdf() {
+    if (!selected.length) return;
+    setPrinting(true);
+    try {
+      const entries = await buildEntries();
+      const cols = grid.c, rows = grid.r;
+      const pages = chunk(entries, cols * rows);
+
+      const doc = new jsPDF({ unit: "mm", format: "a4" });
+      const pageW = 210, pageH = 297, margin = 8, headerH = 9, gap = 2;
+      const gridW = pageW - margin * 2;
+      const gridH = pageH - margin * 2 - headerH - 6;
+      const cellW = (gridW - gap * (cols - 1)) / cols;
+      const cellH = (gridH - gap * (rows - 1)) / rows;
+      const dense = cols * rows >= 40;
+
+      let logoData = "";
+      try { logoData = await imgToDataUrl("/logo.png"); } catch { logoData = ""; }
+
+      for (let p = 0; p < pages.length; p++) {
+        if (p > 0) doc.addPage();
+
+        // Branded masthead
+        if (logoData) {
+          try { doc.addImage(logoData, "PNG", margin, margin - 1, 8, 8); } catch { }
+        }
+        doc.setFont("times", "bold");
+        doc.setFontSize(14);
+        doc.setTextColor(6, 95, 70);
+        doc.text("Sappy Stationary", margin + 10, margin + 5.5);
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(8);
+        doc.setTextColor(130, 130, 130);
+        doc.text("sappyshop.site", pageW - margin, margin + 5.5, { align: "right" });
+
+        const pageItems = pages[p];
+        for (let idx = 0; idx < cols * rows; idx++) {
+          const col = idx % cols;
+          const row = Math.floor(idx / cols);
+          const x = margin + col * (cellW + gap);
+          const y = margin + headerH + row * (cellH + gap);
+          const cell = pageItems[idx];
+
+          doc.setDrawColor(5, 150, 105);
+          doc.setLineWidth(0.3);
+          doc.roundedRect(x, y, cellW, cellH, 1.5, 1.5);
+          if (!cell) continue;
+
+          let cy = y + 1.5;
+          if (cell.qr) {
+            const s = Math.min(cellW * 0.62, cellH * 0.6);
+            try { doc.addImage(cell.qr, "PNG", x + (cellW - s) / 2, cy, s, s); } catch { }
+            cy += s + 1;
+          }
+          doc.setTextColor(31, 42, 36);
+          doc.setFont("helvetica", "bold");
+          doc.setFontSize(dense ? 5 : 7);
+          const nameLine = (doc.splitTextToSize(cell.name, cellW - 2)[0] || "") as string;
+          doc.text(nameLine, x + cellW / 2, cy + 2, { align: "center" });
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(dense ? 4 : 5.5);
+          doc.setTextColor(130, 130, 130);
+          doc.text(cell.serial, x + cellW / 2, cy + (dense ? 4.2 : 5), { align: "center" });
+        }
+
+        // Footer with page numbers
+        doc.setFontSize(8);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`© ${new Date().getFullYear()} Sappy Stationary`, margin, pageH - 4);
+        doc.text(`Page ${p + 1} of ${pages.length}`, pageW - margin, pageH - 4, { align: "right" });
+      }
+
+      doc.save("sappy-label-sheet.pdf");
     } finally { setPrinting(false); }
   }
 
@@ -242,10 +337,10 @@ export default function InventoryPage() {
           </button>
           <button onClick={() => download("/api/inventory?export=template", "sappy-import-template.xlsx")}
             className="rounded-xl border border-emerald-200 bg-white px-4 py-2 hover:bg-emerald-50 transition flex items-center gap-2">
-            <Icon name="download" className="w-4 h-4" /> Template
+            <Icon name="download" className="w-4 h-4" /> <span className="hidden sm:inline">Template</span>
           </button>
           <label className="rounded-xl border border-emerald-200 bg-white px-4 py-2 cursor-pointer hover:bg-emerald-50 transition flex items-center gap-2">
-            <Icon name="upload" className="w-4 h-4" /> Import Excel
+            <Icon name="upload" className="w-4 h-4" /> <span className="hidden sm:inline">Import</span>
             <input type="file" accept=".xlsx,.xls,.csv" className="hidden" onChange={async (e) => {
               const f = e.target.files?.[0]; if (!f) return;
               const fd = new FormData(); fd.append("file", f);
@@ -257,15 +352,15 @@ export default function InventoryPage() {
           </label>
           <button onClick={() => download("/api/inventory?export=xlsx", "inventory.xlsx")}
             className="rounded-xl border border-emerald-200 bg-white px-4 py-2 hover:bg-emerald-50 transition flex items-center gap-2">
-            <Icon name="download" className="w-4 h-4" /> Excel
+            <Icon name="download" className="w-4 h-4" /> <span className="hidden sm:inline">Excel</span>
           </button>
           <button onClick={() => download("/api/inventory?export=pdf", "inventory.pdf")}
             className="rounded-xl border border-emerald-200 bg-white px-4 py-2 hover:bg-emerald-50 transition flex items-center gap-2">
-            <Icon name="download" className="w-4 h-4" /> PDF
+            <Icon name="download" className="w-4 h-4" /> <span className="hidden sm:inline">PDF</span>
           </button>
         </div>
         <p className="text-xs text-emerald-900/50 mb-3">
-          Labels: <b>Select all</b> (or tick items) → pick a grid on the bottom bar (2×2 … 8×10) → press <b>x1</b> for one label per unit (<b>xQTY</b>) → <b>Print sheet</b>.
+          Labels: <b>Select all</b> (or tick items) → pick a grid (2×2 … 8×10) → press <b>x1</b> for one label per unit (<b>xQTY</b>) → <b>Print</b> or <b>PDF</b>.
         </p>
 
         {/* Desktop table */}
@@ -352,7 +447,11 @@ export default function InventoryPage() {
             <span className="w-px h-6 bg-emerald-100 shrink-0" />
             <button onClick={printSheet} disabled={printing}
               className="rounded-full bg-emerald-600 text-white px-4 py-1.5 text-sm font-semibold hover:bg-emerald-700 transition disabled:opacity-60 flex items-center gap-2 whitespace-nowrap">
-              <Icon name="printer" className="w-4 h-4" /> {printing ? "Preparing…" : "Print sheet"}
+              <Icon name="printer" className="w-4 h-4" /> {printing ? "Working…" : "Print"}
+            </button>
+            <button onClick={exportSheetPdf} disabled={printing}
+              className="rounded-full border border-emerald-600 bg-white text-emerald-700 px-4 py-1.5 text-sm font-semibold hover:bg-emerald-50 transition disabled:opacity-60 flex items-center gap-2 whitespace-nowrap">
+              <Icon name="download" className="w-4 h-4" /> {printing ? "Working…" : "PDF"}
             </button>
             <button onClick={() => setSelected([])} title="Clear selection"
               className="rounded-full bg-stone-100 text-stone-600 w-8 h-8 grid place-items-center hover:bg-stone-200 transition shrink-0">
