@@ -116,17 +116,14 @@ export default function InventoryPage() {
   }
 
   async function buildEntries() {
-    const urls = await (async () => {
-      const out: Record<string, string> = {};
-      for (const id of selected) {
-        try {
-          const r = await fetch(`/api/inventory/${id}?qr=1`);
-          const j = await r.json();
-          out[id] = j.dataUrl;
-        } catch { }
-      }
-      return out;
-    })();
+    const urls: Record<string, string> = {};
+    for (const id of selected) {
+      try {
+        const r = await fetch(`/api/inventory/${id}?qr=1`);
+        const j = await r.json();
+        urls[id] = j.dataUrl;
+      } catch { }
+    }
     const entries: any[] = [];
     for (const id of selected) {
       const it = items.find(i => i.id === id);
@@ -137,7 +134,7 @@ export default function InventoryPage() {
     return entries;
   }
 
-  /* ---------- PRINT (browser) ---------- */
+  /* ---------- PRINT (browser, no masthead, logo in every QR) ---------- */
   async function printSheet() {
     if (!selected.length) return;
     setPrinting(true);
@@ -149,11 +146,10 @@ export default function InventoryPage() {
       const dense = grid.c * grid.r >= 40;
       const pagesHtml = pages.map(page => `
         <div class="page">
-          <header><img src="/logo.png" /><b>Sappy Stationary</b></header>
           <div class="grid ${dense ? "dense" : ""}" style="grid-template-columns: repeat(${grid.c}, 1fr); grid-template-rows: repeat(${grid.r}, 1fr);">
             ${page.map(cell => cell ? `
               <div class="cell">
-                ${cell.qr ? `<img class="qr" src="${cell.qr}" />` : ""}
+                ${cell.qr ? `<div class="qrwrap"><img class="qr" src="${cell.qr}" /><img class="qlogo" src="/logo.png" /></div>` : ""}
                 <div class="name">${esc(cell.name)}</div>
                 <div class="serial">${cell.serial}</div>
               </div>` : `<div class="cell empty"></div>`).join("")}
@@ -162,26 +158,30 @@ export default function InventoryPage() {
       w.document.write(`<html><head><title>Sappy Stationary — Labels</title><style>
         @page { size: A4; margin: 8mm; } * { box-sizing: border-box; }
         body { font-family: Arial, sans-serif; margin: 0; }
-        .page { height: 280mm; display: flex; flex-direction: column; page-break-after: always; }
+        .page { height: 281mm; display: flex; flex-direction: column; page-break-after: always; }
         .page:last-child { page-break-after: auto; }
-        header { display: flex; align-items: center; gap: 8px; margin-bottom: 5px; }
-        header img { width: 24px; height: 24px; border-radius: 6px; }
-        header b { font-size: 13px; color: #065F46; }
         .grid { flex: 1; display: grid; gap: 3px; }
         .cell { border: 1.2px solid #059669; border-radius: 8px; padding: 2px; text-align: center;
                 display: flex; flex-direction: column; justify-content: center; align-items: center; overflow: hidden; }
         .cell.empty { border-style: dashed; border-color: #bbb; }
-        .qr { width: 58%; max-height: 62%; }
+        .qrwrap { position: relative; width: 58%; }
+        .qrwrap .qr { width: 100%; display: block; }
+        .qlogo { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+                 width: 28%; background: #fff; border-radius: 4px; padding: 2px; }
         .name { font-weight: 700; font-size: 9px; line-height: 1.15; }
         .serial { font-size: 7px; color: #555; }
-        .dense .qr { width: 72%; } .dense .name { font-size: 6.5px; } .dense .serial { font-size: 5.5px; } .dense .cell { border-radius: 4px; }
+        .dense .qrwrap { width: 72%; }
+        .dense .qlogo { width: 30%; padding: 1px; border-radius: 2px; }
+        .dense .name { font-size: 6.5px; }
+        .dense .serial { font-size: 5.5px; }
+        .dense .cell { border-radius: 4px; }
       </style></head><body>${pagesHtml}
       <script>window.onload = function(){ window.print(); }<\/script></body></html>`);
       w.document.close();
     } finally { setPrinting(false); }
   }
 
-  /* ---------- EXPORT PDF (branded, multi-page) ---------- */
+  /* ---------- EXPORT PDF (no masthead, logo in every QR) ---------- */
   async function exportSheetPdf() {
     if (!selected.length) return;
     setPrinting(true);
@@ -191,9 +191,9 @@ export default function InventoryPage() {
       const pages = chunk(entries, cols * rows);
 
       const doc = new jsPDF({ unit: "mm", format: "a4" });
-      const pageW = 210, pageH = 297, margin = 8, headerH = 9, gap = 2;
+      const pageW = 210, pageH = 297, margin = 8, gap = 2;
       const gridW = pageW - margin * 2;
-      const gridH = pageH - margin * 2 - headerH - 6;
+      const gridH = pageH - margin * 2 - 6; // leave room for footer only
       const cellW = (gridW - gap * (cols - 1)) / cols;
       const cellH = (gridH - gap * (rows - 1)) / rows;
       const dense = cols * rows >= 40;
@@ -204,25 +204,12 @@ export default function InventoryPage() {
       for (let p = 0; p < pages.length; p++) {
         if (p > 0) doc.addPage();
 
-        // Branded masthead
-        if (logoData) {
-          try { doc.addImage(logoData, "PNG", margin, margin - 1, 8, 8); } catch { }
-        }
-        doc.setFont("times", "bold");
-        doc.setFontSize(14);
-        doc.setTextColor(6, 95, 70);
-        doc.text("Sappy Stationary", margin + 10, margin + 5.5);
-        doc.setFont("helvetica", "normal");
-        doc.setFontSize(8);
-        doc.setTextColor(130, 130, 130);
-        doc.text("sappyshop.site", pageW - margin, margin + 5.5, { align: "right" });
-
         const pageItems = pages[p];
         for (let idx = 0; idx < cols * rows; idx++) {
           const col = idx % cols;
           const row = Math.floor(idx / cols);
           const x = margin + col * (cellW + gap);
-          const y = margin + headerH + row * (cellH + gap);
+          const y = margin + row * (cellH + gap);
           const cell = pageItems[idx];
 
           doc.setDrawColor(5, 150, 105);
@@ -233,7 +220,15 @@ export default function InventoryPage() {
           let cy = y + 1.5;
           if (cell.qr) {
             const s = Math.min(cellW * 0.62, cellH * 0.6);
-            try { doc.addImage(cell.qr, "PNG", x + (cellW - s) / 2, cy, s, s); } catch { }
+            const qx = x + (cellW - s) / 2;
+            try { doc.addImage(cell.qr, "PNG", qx, cy, s, s); } catch { }
+            // Logo embedded in the center of the QR
+            if (logoData) {
+              const ls = s * 0.28;
+              doc.setFillColor(255, 255, 255);
+              doc.roundedRect(qx + (s - ls) / 2 - 0.8, cy + (s - ls) / 2 - 0.8, ls + 1.6, ls + 1.6, 0.8, 0.8, "F");
+              try { doc.addImage(logoData, "PNG", qx + (s - ls) / 2, cy + (s - ls) / 2, ls, ls); } catch { }
+            }
             cy += s + 1;
           }
           doc.setTextColor(31, 42, 36);
@@ -247,7 +242,7 @@ export default function InventoryPage() {
           doc.text(cell.serial, x + cellW / 2, cy + (dense ? 4.2 : 5), { align: "center" });
         }
 
-        // Footer with page numbers
+        // Footer with page numbers (kept)
         doc.setFontSize(8);
         doc.setTextColor(150, 150, 150);
         doc.text(`© ${new Date().getFullYear()} Sappy Stationary`, margin, pageH - 4);
@@ -258,6 +253,7 @@ export default function InventoryPage() {
     } finally { setPrinting(false); }
   }
 
+  /* ---------- single label PNG (logo in QR center) ---------- */
   async function downloadLabelPng(item: any) {
     if (!qrUrl) return;
     const qrI = await loadImg(qrUrl);
@@ -276,7 +272,16 @@ export default function InventoryPage() {
     x.fillStyle = "#1F2A24"; x.font = "bold 38px Arial";
     x.fillText(item.name.length > 22 ? item.name.slice(0, 21) + "…" : item.name, W / 2, y + 5); y += 45;
     x.fillStyle = "#6B7280"; x.font = "26px Arial"; x.fillText(item.serial, W / 2, y + 5); y += 45;
-    const qs = 420; x.drawImage(qrI, (W - qs) / 2, y, qs, qs);
+    const qs = 420;
+    const qx = (W - qs) / 2;
+    x.drawImage(qrI, qx, y, qs, qs);
+    if (logo) {
+      const ls = qs * 0.28;
+      x.fillStyle = "#FFFFFF";
+      x.fillRect(qx + (qs - ls) / 2 - 8, y + (qs - ls) / 2 - 8, ls + 16, ls + 16);
+      x.drawImage(logo, qx + (qs - ls) / 2, y + (qs - ls) / 2, ls, ls);
+    }
+    y += qs + 55;
     x.fillStyle = "#9CA3AF"; x.font = "24px Arial"; x.fillText("sappyshop.site", W / 2, H - 55);
     const a = document.createElement("a"); a.download = `${item.serial}-label.png`; a.href = c.toDataURL("image/png"); a.click();
   }
@@ -466,7 +471,7 @@ export default function InventoryPage() {
         <ItemForm initial={edit} onClose={() => { setFormOpen(false); setEdit(null); }} onSaved={() => { setFormOpen(false); setEdit(null); load(); }} />
       )}
 
-      {/* QR label */}
+      {/* QR label (logo embedded in QR center) */}
       {qr && (
         <Overlay onClose={() => setQr(null)} title={qr.name}>
           <div className="text-center">
@@ -479,7 +484,15 @@ export default function InventoryPage() {
                 <div className="font-semibold text-sm truncate">{qr.name}</div>
                 <div className="text-[11px] text-emerald-900/60 mt-0.5">{qr.serial}</div>
                 <div className="my-2 bg-white p-2 rounded-xl border border-emerald-100">
-                  {qrUrl ? <img src={qrUrl} alt="QR" className="w-full h-auto" /> : <div className="h-32 grid place-items-center text-emerald-900/40 text-xs">Loading…</div>}
+                  {qrUrl ? (
+                    <div className="relative">
+                      <img src={qrUrl} alt="QR" className="w-full h-auto" />
+                      <img src="/logo.png" alt=""
+                        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[26%] rounded-md bg-white p-1" />
+                    </div>
+                  ) : (
+                    <div className="h-32 grid place-items-center text-emerald-900/40 text-xs">Loading…</div>
+                  )}
                 </div>
                 <div className="text-[9px] text-emerald-900/50 mt-0.5">sappyshop.site</div>
               </div>
