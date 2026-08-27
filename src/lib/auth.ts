@@ -16,6 +16,7 @@ export const authOptions: NextAuthOptions = {
       credentials: {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" },
+        name: { label: "Name", type: "text" },
         masterCode: { label: "Master code (for new sign-ups)", type: "password" },
       },
       async authorize(credentials) {
@@ -24,7 +25,7 @@ export const authOptions: NextAuthOptions = {
 
         let user = await prisma.user.findUnique({ where: { email: credentials.email.toLowerCase() } });
 
-        // SIGN-UP path: if user doesn't exist, require master code
+        // SIGN-UP path: user doesn't exist → require master code
         if (!user) {
           const settings = await prisma.appSettings.findUnique({ where: { id: "singleton" } });
           if (!settings) return null;
@@ -35,7 +36,7 @@ export const authOptions: NextAuthOptions = {
           user = await prisma.user.create({
             data: {
               email: credentials.email.toLowerCase(),
-              name: credentials.email.split("@")[0],
+              name: String(credentials.name || credentials.email.split("@")[0]).slice(0, 60),
               passwordHash: hash,
               role: "staff",
             },

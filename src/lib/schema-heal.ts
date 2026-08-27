@@ -9,10 +9,12 @@ export async function ensureSchema(db: PrismaClient) {
       "name" TEXT NOT NULL,
       "passwordHash" TEXT NOT NULL,
       "role" TEXT NOT NULL DEFAULT 'staff',
+      "avatar" TEXT,
       "createdAt" TIMESTAMPTZ NOT NULL DEFAULT now(),
       "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT now()
     );
     ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "role" TEXT NOT NULL DEFAULT 'staff';
+    ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "avatar" TEXT;
 
     CREATE TABLE IF NOT EXISTS "InventoryItem" (
       "id" TEXT PRIMARY KEY,
@@ -133,7 +135,7 @@ export async function ensureSchema(db: PrismaClient) {
     try {
       await db.$executeRawUnsafe(s);
     } catch (e) {
-      // swallow — table/column may already exist
+      // table/column may already exist — safe to ignore
     }
   }
   await seed(db);
@@ -169,6 +171,6 @@ async function seed(db: PrismaClient) {
       });
     }
   } catch (e) {
-    // swallow — seeding is best-effort
+    // seeding is best-effort
   }
 }

@@ -121,7 +121,7 @@ export default function InventoryPage() {
     setCopies(c => ({ ...c, [id]: (c[id] || 1) === 1 ? Math.max(qty, 1) : 1 }));
   }
 
-  /* INSTANT: QR codes generated on-device + cached (no network round-trips) */
+  /* INSTANT: QR codes generated on-device + cached */
   async function buildEntries() {
     const entries: any[] = [];
     for (const id of selected) {
@@ -458,7 +458,7 @@ export default function InventoryPage() {
         </div>
       )}
 
-      {/* Add / Edit form */}
+      {/* Add / Edit form (with duplicate warning) */}
       {formOpen && (
         <ItemForm initial={edit} onClose={() => { setFormOpen(false); setEdit(null); }} onSaved={() => { setFormOpen(false); setEdit(null); load(); }} />
       )}
@@ -523,6 +523,14 @@ function ItemForm({ initial, onClose, onSaved }: any) {
   const [costUnknown, setCostUnknown] = useState(!!initial?.costUnknown);
   const [err, setErr] = useState("");
 
+  const [allNames, setAllNames] = useState<{ id: string; name: string }[]>([]);
+  useEffect(() => {
+    fetch("/api/inventory").then(r => r.json())
+      .then(j => setAllNames((Array.isArray(j) ? j : []).map((x: any) => ({ id: x.id, name: String(x.name).toLowerCase() }))))
+      .catch(() => {});
+  }, []);
+  const dup = allNames.find(n => n.name === name.trim().toLowerCase() && n.id !== initial?.id);
+
   async function save() {
     if (!name) return setErr("Name is required");
     const body = {
@@ -547,6 +555,11 @@ function ItemForm({ initial, onClose, onSaved }: any) {
     <Overlay onClose={onClose} title={initial ? "Edit item" : "New item"}>
       <div className="space-y-2">
         <input placeholder="Name" value={name} onChange={e => setName(e.target.value)} className="w-full rounded-xl border border-emerald-200 px-4 py-2" />
+        {dup && (
+          <div className="rounded-xl bg-amber-50 border border-amber-200 px-3 py-2 text-sm text-amber-800">
+            ⚠️ An item named “{name.trim()}” already exists — saving will create a duplicate.
+          </div>
+        )}
         <select value={category} onChange={e => setCategory(e.target.value)} className="w-full rounded-xl border border-emerald-200 px-4 py-2">
           <option>Custom</option>
         </select>
