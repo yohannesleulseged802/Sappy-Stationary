@@ -91,8 +91,9 @@ model PurchaseOrder {
 }
 
 model PurchaseLine {
-  id       String  @id @default(cuid())
+  id       String        @id @default(cuid())
   poId     String
+  po       PurchaseOrder @relation(fields: [poId], references: [id])
   itemName String
   qty      Int
   cost     Decimal
